@@ -120,16 +120,16 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         // Increment the score based on the current stage
         switch (currentStage) {
             case 1:
-                score += 50;
+                score += 10;
                 break;
             case 2:
-                score += 50;
+                score += 16;
                 break;
             case 3:
-                score += 50;
+                score += 18;
                 break;
             case 4:
-                score += 50;
+                score += 20;
                 break;
         }
 
