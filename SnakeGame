@@ -1,12 +1,16 @@
-// SnakeGame.java (original file)
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Random;
 import javax.swing.*;
+import java.sql.*;
+import java.sql.Connection;
+import java.sql.SQLException;
+import javax.swing.JOptionPane;
 
 
 public class SnakeGame extends JPanel implements ActionListener, KeyListener {
+
     protected class Tile {
         int x;
         int y;
@@ -66,6 +70,7 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
     SnakeGame(int boardWidth, int boardHeight) {
         this.boardWidth = boardWidth;
         this.boardHeight = boardHeight;
+        
         setPreferredSize(new Dimension(this.boardWidth, this.boardHeight));
         setBackground(Color.black);
         addKeyListener(this);
@@ -120,16 +125,16 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         // Increment the score based on the current stage
         switch (currentStage) {
             case 1:
-                score += 10;
+                score += 50;
                 break;
             case 2:
-                score += 16;
+                score += 50;
                 break;
             case 3:
-                score += 18;
+                score += 50;
                 break;
             case 4:
-                score += 20;
+                score += 50;
                 break;
         }
 
@@ -447,35 +452,63 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
     }
 
     @Override
-    public void actionPerformed(ActionEvent e) {
-        if (gameStarted && keyPressed) {
-            move();
+public void actionPerformed(ActionEvent e) {
+     if (gameStarted && keyPressed) {
+        move();
+    }
+    repaint();
+    if (gameOver) {
+        boolean won = false;
+        if (gameOverListener != null) {
+            won = snakeBody.size() + 1 == totalBlocks;
+            gameOverListener.gameOver(won);
         }
-        repaint();
-        if (gameOver) {
-            boolean won = false;
-            if (gameOverListener != null) {
-                won = snakeBody.size() + 1 == totalBlocks;
-                gameOverListener.gameOver(won);
-            }
+        // Check if the player wants to play again
+        int input;
+        if (won)
+            input = JOptionPane.showConfirmDialog(null, "Congratulations! You won the game!", "Game Over", JOptionPane.YES_NO_OPTION);
+        else if (score < 1000)
+            input = JOptionPane.showConfirmDialog(null, "You lose! You want to play again?", "Game Over", JOptionPane.YES_NO_OPTION);
+        else
+            input = JOptionPane.showConfirmDialog(null, "Thank you for playing! Do You want to play again?", "Congratulations", JOptionPane.YES_NO_OPTION);
 
-            // Check if the player wants to play again
-            int input;
-            if (won)
-                input = JOptionPane.showConfirmDialog(null, "Congratulations! You won the game!", "Game Over", JOptionPane.YES_NO_OPTION);
-            else
-            if(score<1000)
-                input = JOptionPane.showConfirmDialog(null, "You lose! You want to play again?", "Game Over", JOptionPane.YES_NO_OPTION);
-            else
-                input = JOptionPane.showConfirmDialog(null, "Thank you for playing! Do You want to play again?", "Congratulations", JOptionPane.YES_NO_OPTION);
+        if (input == JOptionPane.YES_OPTION) {
+            resetAll();
+        } else {
             if (input == JOptionPane.YES_OPTION) {
                 resetAll();
             } else {
+                // Insert the score into the database
+                try (Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/oop_finalproject", "root", "")) {
+                    String selectQuery = "SELECT username FROM login WHERE username"; // Replace <condition> with the appropriate condition to select the correct username
+
+                    PreparedStatement selectStmt = conn.prepareStatement(selectQuery);
+                    ResultSet rs = selectStmt.executeQuery();
+
+                    String insertQuery = "UPDATE `login` SET score='" + score + "'";
+                    PreparedStatement stmt = conn.prepareStatement(insertQuery);
+                    stmt.setInt(2, score);
+
+                    int rowsAffected = stmt.executeUpdate();
+                    if (rowsAffected > 0) {
+                        System.out.println("Score inserted into the database.");
+                    } else {
+                        System.out.println("Failed to insert score into the database.");
+                    }
+                } catch (SQLException ex) {
+                    System.out.println("An error occurred while inserting score into the database: " + ex.getMessage());
+                }
+
                 gameLoop.stop(); // Stop the game loop
-                System.exit(0);
+                Dashboard dash = new Dashboard();
+                dash.setVisible(true);
+                App app = new App();
+                app.dispose();
             }
         }
     }
+}
+
 
 
     @Override
@@ -534,4 +567,5 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void keyReleased(KeyEvent e) {}
+
 }
