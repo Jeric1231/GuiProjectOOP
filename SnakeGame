@@ -521,6 +521,18 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
                 won = snakeBody.size() + 1 == totalBlocks;
                 gameOverListener.gameOver(won);
             }
+            //SQL INSERT DATA
+            try {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                con = DriverManager.getConnection("jdbc:mysql://localhost:3306/oop_finalproject", "root", "");
+                String sql = "INSERT INTO `user`(`username`, `score`) "
+                + "VALUES ('" + username + "','" + score + "')";
+                st = con.createStatement();
+                st.execute(sql);
+            } catch (ClassNotFoundException | SQLException ex) {
+                Logger.getLogger(SnakeGame.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            
             // Check if the player wants to play again
             int input;
             if (won)
@@ -529,23 +541,12 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
                 input = JOptionPane.showConfirmDialog(null, "You lose! You want to play again?", "Game Over", JOptionPane.YES_NO_OPTION);
             else
                 input = JOptionPane.showConfirmDialog(null, "Thank you for playing! Do You want to play again?", "Congratulations", JOptionPane.YES_NO_OPTION);
-
             if (input == JOptionPane.YES_OPTION) {
                 resetAll();
             } else {
                 if (input == JOptionPane.YES_OPTION) {
                     resetAll();
                 } else {
-                    try {
-                        Class.forName("com.mysql.cj.jdbc.Driver");
-                        con = DriverManager.getConnection("jdbc:mysql://localhost:3306/oop_finalproject", "root", "");
-                        String sql = "INSERT INTO `user`(`username`, `score`) "
-                        + "VALUES ('" + username + "','" + score + "')";
-                        st = con.createStatement();
-                        st.execute(sql);
-                    } catch (ClassNotFoundException | SQLException ex) {
-                        Logger.getLogger(SnakeGame.class.getName()).log(Level.SEVERE, null, ex);
-                    }
                     gameLoop.stop(); // Stop the game loop
                     Dashboard dash = new Dashboard(username);
                     dash.setVisible(true);
