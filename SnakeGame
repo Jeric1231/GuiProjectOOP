@@ -14,9 +14,10 @@ import java.util.logging.Logger;
 
 
 public class SnakeGame extends JPanel implements ActionListener, KeyListener {
-
+    private App appInstance;
     Connection con; //variable for databse connection
     Statement st; //variable for the sql
+
 
     protected class Tile {
         int x;
@@ -76,10 +77,11 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
 
     String username;
 
-    SnakeGame(int boardWidth, int boardHeight, String name) {
+    SnakeGame(int boardWidth, int boardHeight, String name, App appInstance) {
         this.boardWidth = boardWidth;
         this.boardHeight = boardHeight;
         this.username = name;
+        this.appInstance = appInstance; // Store the reference to App
         
         setPreferredSize(new Dimension(this.boardWidth, this.boardHeight));
         setBackground(Color.black);
@@ -112,54 +114,10 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         // Initialize and scatter collision blocks
         collisionBlocks = new ArrayList<>();
         scatterBlocks();
-    }
-
-    
-    SnakeGame(int boardWidth, int boardHeight) {
-        this.boardWidth = boardWidth;
-        this.boardHeight = boardHeight;
-        
-        setPreferredSize(new Dimension(this.boardWidth, this.boardHeight));
-        setBackground(Color.black);
-        addKeyListener(this);
-        setFocusable(true);
-
-        totalBlocks = (boardWidth / tileSize) * (boardHeight / tileSize);
-
-        snakeHead = new Tile(5, 5);
-        snakeBody = new ArrayList<Tile>();
-
-        food = new Tile(10, 10);
-        specialFood = new Tile(10, 10);
-        teleportFood = new Tile(10, 10); // Initialize teleportFood
-        random = new Random();
-        placeFood();
-
-        velocityX = 1;
-        velocityY = 0;
-
-        //game timer
-        gameLoop = new Timer(100, this); //how long it takes to start timer, milliseconds gone between frames
-        gameLoop.start();
-
-        //Object
-        reset = new Reset();
-
-        setGameSpeed(0); // Set the initial game speed
-
-        // Initialize and scatter collision blocks
-        collisionBlocks = new ArrayList<>();
-        scatterBlocks();
-    }
-
-
-    private boolean askReadyForStage() {
-        int ready = JOptionPane.showConfirmDialog(this, "Are you ready to enter Stage " + currentStage + "?", "Stage " + currentStage, JOptionPane.YES_OPTION);
-        return ready == JOptionPane.YES_OPTION;
     }
 
     private boolean askContinueGame() {
-        int ready = JOptionPane.showConfirmDialog(this, "Do you still want to continue your game?", "Continue? ", JOptionPane.YES_NO_OPTION);
+        int ready = JOptionPane.showConfirmDialog(this, "You Completed all Stages! Do you still want to continue your game?", "Continue? ", JOptionPane.YES_NO_OPTION);
         return ready == JOptionPane.YES_NO_OPTION;
     }
 
@@ -173,16 +131,16 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         // Increment the score based on the current stage
         switch (currentStage) {
             case 1:
-                score += 50;
+                score += 10;
                 break;
             case 2:
-                score += 50;
+                score += 15;
                 break;
             case 3:
-                score += 50;
+                score += 18;
                 break;
             case 4:
-                score += 50;
+                score += 20;
                 break;
         }
 
@@ -196,19 +154,20 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
             setGameSpeed(2);
         } else if (score >= 400 && currentStage == 2) {
             showStageMessage();
+            gameStarted = false;
+            gamePaused = false;
             currentStage = 3;
             setGameSpeed(3);
             scatterBlocks();
             repaint();
-            askReadyForStage();
-
         } else if (score >= 600 && currentStage == 3) {
             showStageMessage();
+            gameStarted = false;
+            gamePaused = false;
             currentStage = 4;
             setGameSpeed(4);
             scatterBlocks();
             repaint();
-            askReadyForStage();
         } else if (score >= 1000 && currentStage == 4) {
             // Player wins the game when reaching the final score
             if(!askContinueGame()) {
@@ -226,16 +185,16 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
     }
 
     private void setGameSpeed(int stage) {
-        int delay =0 ;
+        int delay = 0;
         switch (stage) {
             case 2:
                 delay = 95; // Stage 2 speed
                 break;
             case 3:
-                delay = 75; // Stage 3 speed
+                delay = 80; // Stage 3 speed
                 break;
             case 4:
-                delay = 50; // Stage 4 speed
+                delay = 70; // Stage 4 speed
                 break;
             default:
                 delay = 115;
@@ -332,11 +291,9 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
     public void placeFood() {
         // Generate a random number between 0 and 99
         int randomNum = random.nextInt(100);
-
         // Adjust probabilities based on random number
         if (randomNum < 60) { // 60% chance for blue food
-            food.x = random.nextInt(boardWidth / tileSize);
-            food.y = random.nextInt(boardHeight / tileSize);
+            placeFoodWithoutSnakeCollision(food);
             specialFood.x = -1; // Set the special food position outside the board
             specialFood.y = -1;
             teleportFood.x = -1; // Set the teleport food position outside the board
@@ -345,8 +302,7 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         } else if (randomNum < 90) { // 30% chance for red food
             food.x = -1; // Set the regular food position outside the board
             food.y = -1;
-            specialFood.x = random.nextInt(boardWidth / tileSize);
-            specialFood.y = random.nextInt(boardHeight / tileSize);
+            placeFoodWithoutSnakeCollision(specialFood);
             teleportFood.x = -1; // Set the teleport food position outside the board
             teleportFood.y = -1;
             foodStartTime = System.currentTimeMillis(); // Set the start time for the special food
@@ -355,9 +311,35 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
             food.y = -1;
             specialFood.x = -1; // Set the special food position outside the board
             specialFood.y = -1;
-            teleportFood.x = random.nextInt(boardWidth / tileSize);
-            teleportFood.y = random.nextInt(boardHeight / tileSize);
+            placeFoodWithoutSnakeCollision(teleportFood);
             foodStartTime = System.currentTimeMillis(); // Set the start time for the teleport food
+        }
+    }
+    
+    private void placeFoodWithoutSnakeCollision(Tile food) {
+        Random random = new Random();
+        boolean foodPlaced = false;
+
+        while (!foodPlaced) {
+            // Generate random coordinates for the food
+            int foodX = random.nextInt(boardWidth / tileSize);
+            int foodY = random.nextInt(boardHeight / tileSize);
+
+            // Check if the food coordinates intersect with any part of the snake's body
+            boolean intersectsSnake = false;
+            for (Tile part : snakeBody) {
+                if (part.x == foodX && part.y == foodY) {
+                    intersectsSnake = true;
+                    break;
+                }
+            }
+
+            // If the food does not intersect with the snake's body, place it
+            if (!intersectsSnake) {
+                food.x = foodX;
+                food.y = foodY;
+                foodPlaced = true;
+            }
         }
     }
 
@@ -374,22 +356,50 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
             // Add cases for other stages if needed
         }
         collisionBlocks.clear(); // Clear the existing collision blocks
-        for (int i = 0; i < blocks; i++) { // Scatter blocks based on the current stage
-            int blockX = random.nextInt(boardWidth / tileSize); // Random X-coordinate within the frame
-            int blockY = random.nextInt(boardHeight / tileSize); // Random Y-coordinate within the frame
-            collisionBlocks.add(new Tile(blockX, blockY)); // Add the block to the list
+
+        // Iterate to scatter blocks based on the current stage
+        for (int i = 0; i < blocks; i++) {
+            boolean blockPlaced = false;
+            while (!blockPlaced) {
+                int blockX = random.nextInt(boardWidth / tileSize); // Random X-coordinate within the frame
+                int blockY = random.nextInt(boardHeight / tileSize); // Random Y-coordinate within the frame
+
+                // Check if the block coordinates intersect with any part of the snake's body
+                boolean intersectsSnake = false;
+                for (Tile part : snakeBody) {
+                    if (part.x == blockX && part.y == blockY) {
+                        intersectsSnake = true;
+                        break;
+                    }
+                }
+
+                // If the block does not intersect with the snake's body, place it
+                if (!intersectsSnake) {
+                    collisionBlocks.add(new Tile(blockX, blockY)); // Add the block to the list
+                    blockPlaced = true;
+                }
+            }
         }
     }
 
 
     public void move() {
+        long currentTime = System.currentTimeMillis();
+
+        // Check if the game is paused
+        if (gamePaused) {
+            // Update the start time of the food to adjust for the pause
+            foodStartTime += currentTime - foodStartTime;
+            return; // Exit the method early if the game is paused
+        }
+
         // Check if the regular food should disappear
-        if (food.x >= 0 && food.y >= 0 && System.currentTimeMillis() - foodStartTime >= foodDuration) {
+        if (food.x >= 0 && food.y >= 0 && currentTime - foodStartTime >= foodDuration) {
             placeFood(); // Place a new food in a random location
         }
 
         // Check if the special food should disappear
-        if (specialFood.x >= 0 && specialFood.y >= 0 && System.currentTimeMillis() - foodStartTime >= foodDuration) {
+        if (specialFood.x >= 0 && specialFood.y >= 0 && currentTime - foodStartTime >= foodDuration) {
             placeFood(); // Place a new food in a random location
         }
 
@@ -420,7 +430,7 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
             updateScore();
 
             // Start the timer for the teleport food
-            foodStartTime = System.currentTimeMillis();
+            foodStartTime = currentTime;
 
             // Place a new teleport food in a random location
             placeFood();
@@ -501,7 +511,7 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
-        if (gameStarted && keyPressed) {
+         if (gameStarted && keyPressed) {
             move();
         }
         repaint();
@@ -519,28 +529,31 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
                 input = JOptionPane.showConfirmDialog(null, "You lose! You want to play again?", "Game Over", JOptionPane.YES_NO_OPTION);
             else
                 input = JOptionPane.showConfirmDialog(null, "Thank you for playing! Do You want to play again?", "Congratulations", JOptionPane.YES_NO_OPTION);
+
             if (input == JOptionPane.YES_OPTION) {
-                resetAll(username);
+                resetAll();
             } else {
-                try {
-                    Class.forName("com.mysql.cj.jdbc.Driver");
-                    con = DriverManager.getConnection("jdbc:mysql://localhost:3306/oop_finalproject", "root", "");
-                    String sql = "INSERT INTO `user`(`username`, `score`) "
-                    + "VALUES ('" + username + "','" + score + "')";
-                    st = con.createStatement();
-                    st.execute(sql);
-                } catch (ClassNotFoundException | SQLException ex) {
-                    Logger.getLogger(SnakeGame.class.getName()).log(Level.SEVERE, null, ex);
+                if (input == JOptionPane.YES_OPTION) {
+                    resetAll();
+                } else {
+                    try {
+                        Class.forName("com.mysql.cj.jdbc.Driver");
+                        con = DriverManager.getConnection("jdbc:mysql://localhost:3306/oop_finalproject", "root", "");
+                        String sql = "INSERT INTO `user`(`username`, `score`) "
+                        + "VALUES ('" + username + "','" + score + "')";
+                        st = con.createStatement();
+                        st.execute(sql);
+                    } catch (ClassNotFoundException | SQLException ex) {
+                        Logger.getLogger(SnakeGame.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    gameLoop.stop(); // Stop the game loop
+                    Dashboard dash = new Dashboard(username);
+                    dash.setVisible(true);
+                    appInstance.dispose(); // Dispose the App frame
                 }
-                gameLoop.stop(); // Stop the game loop
-                Dashboard dash = new Dashboard(username);
-                dash.setVisible(true);
-                App app = new App();
-                app.gameOver();
             }
         }
-   }
-    
+    }
 
 
     @Override
@@ -569,14 +582,14 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
         }
     }
 
-    private void resetAll(String username) {
+    private void resetAll() {
         // Reset game state
         reset.resetAll(); // Reset score, foodsEaten, stackedTeleports, and currentStage using ScoreManager methods
         score = reset.getScore(); // Update score from ScoreManager
         foodsEaten = reset.getFoodsEaten(); // Update foodsEaten from ScoreManager
         stackedTeleports = reset.getStackedTeleports(); // Update stackedTeleports from ScoreManager
         currentStage = reset.getCurrentStage(); // Update currentStage from ScoreManager
-        this.username = username;
+        username = username;
         gameOver = false;
         gameStarted = false;
         gamePaused = false;
@@ -601,4 +614,5 @@ public class SnakeGame extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void keyReleased(KeyEvent e) {}
+
 }
